@@ -41,3 +41,8 @@ async def get_user_data(user_id: int):
     
     except Exception as e:
         return {"error": str(e)}
+
+
+@app.get("/")
+async def root():
+    return {"message": "Welcome to the ScentMatch API!"}
