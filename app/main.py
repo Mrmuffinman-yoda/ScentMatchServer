@@ -46,3 +46,9 @@ async def get_user_data(user_id: int):
 @app.get("/")
 async def root():
     return {"message": "Welcome to the ScentMatch API!"}
+
+
+
+@app.get("/fragrance/{fragrance_id}")
+async def get_fragrance_data(fragrance_id: int):
+    return {"message": f"Fragrance data for ID {fragrance_id}."}
