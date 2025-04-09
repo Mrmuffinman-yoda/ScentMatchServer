@@ -11,6 +11,7 @@ def test_fragrance_house():
     It should send the information for the fragrance house for example the name and when it was founded."""
 
     Lattafa = FragranceHouse(
+        id=1,
         name="Lattafa",
         founded=1980,
         country_of_origin="United Arab Emirates",
