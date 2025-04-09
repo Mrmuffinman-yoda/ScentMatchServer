@@ -2,6 +2,7 @@ from pydantic import BaseModel
 
 
 class FragranceHouse(BaseModel):
+    id:int
     name: str
     founded: int
     country_of_origin: str

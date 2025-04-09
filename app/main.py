@@ -1,48 +1,65 @@
 # main.py
 from fastapi import FastAPI
-import psycopg2
-import os
 from dotenv import load_dotenv
+from app.utils.request_logger import log_requests
+import json
 
-from app.models.FragranceHouse import FragranceHouse
+from app.utils.redis_adapter import RedisAdapter
 
-app = FastAPI()
+from app.utils.db_conn import DBConnection
+from app.models import User
+import logging
+from app.models import FragranceHouse
 
+logging.basicConfig(level=logging.info)
+logger = logging.getLogger("uvicorn")
+
+############################## Setup ####################################
 load_dotenv()
-
-# Database connection details
-DB_HOST = os.getenv("DB_HOST")
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
+app = FastAPI()
+app.middleware("http")(log_requests)
+conn = DBConnection()
+r = RedisAdapter()
+#########################################################################
 
 
 @app.get("/user/{user_id}")
 async def get_user_data(user_id: int):
-    # Connect to PostgreSQL database
+
+    cache_key = f"user_data_{user_id}"
+
+    cached_data = r.get(cache_key)
+    if cached_data:
+        logging.info(f"Cache hit for key: {cache_key}")
+        return json.loads(cached_data)
+    
+    logging.info(f"Cache miss for key: {cache_key}")
+    
     try:
-        conn = psycopg2.connect(
-            dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD, host=DB_HOST
+
+        user = conn.execute_single(
+            "SELECT username, email FROM users WHERE id = %s", (user_id,)
         )
-        cursor = conn.cursor()
-
-        # Query user data
-        cursor.execute("SELECT username, email FROM users WHERE id = %s", (user_id,))
-        user = cursor.fetchone()
-
-        cursor.close()
-        conn.close()
 
         if user:
             # Build image URL assuming image names are stored as username.png
             image_url = f"http://127.0.0.1:9000/scentmatch/{user[0]}.png"
-            return {
-                "user": {
-                    "username": user[0],
-                    "email": user[1],
-                },
-                "image_url": image_url,
-            }
+
+            # Cache the result for 30 minutes
+
+            c_user = User(
+                id=user_id,
+                username=user[0],
+                email=user[1],
+                image_url=image_url,
+            )
+            r.set(
+                cache_key,
+                c_user.model_dump_json(),
+                expire=1800,
+            )
+
+            return c_user.model_dump()
         else:
             return {"error": "User not found"}
 
@@ -54,47 +71,54 @@ async def get_user_data(user_id: int):
 async def root():
     return {"message": "Welcome to the ScentMatch API!"}
 
-
+###############################################################################################################################
 @app.get("/fragrance/{fragrance_house}")
 async def get_fragrance_data(fragrance_house: str):
     """Will fetch from the database, for now create a dummy data"""
 
-    # response = FragranceHouse(
-    #     name=fragrance_house,
-    #     founded=2016,
-    #     country_of_origin="United Arab Emirates",
-    #     logo_url="https://example.com/logo.jpg",
-    #     website_url="https://example.com",
-    #     description="Lattafa is a fragrance house known for its unique and captivating scents.",
-    # )
-    # return response.model_dump_json()
+    cache_key =f"fragrance_data_{fragrance_house}"
+    cached_data = r.get(cache_key)
+    if cached_data:
+        # Log the cache hit
+        logging.info(f"Cache hit for key: {cache_key}")
+        return json.loads(cached_data)
+
+    logging.info(f"Cache miss for key: {cache_key}")
 
     try:
-        conn = psycopg2.connect(
-            dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD, host=DB_HOST
-        )
-        cursor = conn.cursor()
+        # Log the incoming parameter
+        logging.info(f"Fetching fragrance data for: {fragrance_house}")
 
-        # Query fragrance data
-        cursor.execute(
-            "SELECT name, founded, country_of_origin, logo_url, website_url, description FROM fragrance_house WHERE name = %s",
+        # Execute the query with case-insensitive matching
+        frag_house = conn.execute_single(
+            "SELECT id, name, founded, country_of_origin, logo_url, website_url, description FROM fragrance_house WHERE name ILIKE %s",
             (fragrance_house,),
         )
-        fragrance = cursor.fetchone()
 
-        cursor.close()
-        conn.close()
+        # Log the query result
+        logging.warning(f"Fragrance data: {frag_house}")
 
-        if fragrance:
-            return {
-                "name": fragrance[0],
-                "founded": fragrance[1],
-                "country_of_origin": fragrance[2],
-                "logo_url": fragrance[3],
-                "website_url": fragrance[4],
-                "description": fragrance[5],
-            }
+        if frag_house:
+            house = FragranceHouse(
+                id=frag_house[0],
+                name=frag_house[1],
+                founded=frag_house[2],
+                country_of_origin=frag_house[3],
+                logo_url=frag_house[4],
+                website_url=frag_house[5],
+                description=frag_house[6],
+            )
+
+            r.set(
+                cache_key,
+                house.model_dump_json(),
+                expire=1800,
+            )
+
+            return house.model_dump()
         else:
+            logging.error(f"No fragrance house found for: {fragrance_house}")
             return {"error": "Fragrance house not found"}
     except Exception as e:
+        logging.exception("Error fetching fragrance data")
         return {"error": str(e)}

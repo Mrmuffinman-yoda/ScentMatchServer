@@ -4,11 +4,11 @@ import os
 
 
 def wait():
-    host = os.getenv("POSTGRES_HOST", "postgres-db-test")  # matches your container_name
-    port = int(os.getenv("POSTGRES_PORT", 5432))  # internal Postgres port
-    user = os.getenv("POSTGRES_USER", "scentmatch_user")
-    password = os.getenv("POSTGRES_PASSWORD", "scentmatch_password")
-    dbname = os.getenv("POSTGRES_DB", "scentmatch_test_db")
+    host = os.getenv("DB_HOST")
+    dbname = os.getenv("DB_NAME")
+    user = os.getenv("DB_USER")
+    password = os.getenv("DB_PASSWORD")
+    port = os.getenv("DB_PORT")
 
     while True:
         try:
