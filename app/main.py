@@ -3,13 +3,16 @@ from fastapi import FastAPI
 from dotenv import load_dotenv
 from app.utils.request_logger import log_requests
 import json
+from app.models.Fragrance import FragranceORM, Fragrance
 
 from app.utils.redis_adapter import RedisAdapter
+from sqlalchemy.orm import Session
+from fastapi import Depends
 
-from app.utils.db_conn import DBConnection
-from app.models import User
+from app.models.User import User as UserModel, UserORM
 import logging
-from app.models import FragranceHouse
+from app.models import Fragrance
+from app.utils.db_conn import get_db
 
 logging.basicConfig(level=logging.info)
 logger = logging.getLogger("uvicorn")
@@ -18,107 +21,85 @@ logger = logging.getLogger("uvicorn")
 load_dotenv()
 app = FastAPI()
 app.middleware("http")(log_requests)
-conn = DBConnection()
-r = RedisAdapter()
+redis = RedisAdapter()
 #########################################################################
 
 
-@app.get("/user/{user_id}")
-async def get_user_data(user_id: int):
 
+from sqlalchemy import select
+from app.models.User import User as UserModel, UserORM
+
+from fastapi import HTTPException
+
+@app.get("/user/{user_id}", response_model=UserModel)
+async def get_user_data(user_id: int, db: Session = Depends(get_db)):
     cache_key = f"user_data_{user_id}"
 
-    cached_data = r.get(cache_key)
-    if cached_data:
-        logging.info(f"Cache hit for key: {cache_key}")
-        return json.loads(cached_data)
-    
-    logging.info(f"Cache miss for key: {cache_key}")
-    
+    def fetch_user():
+        try:
+            user_orm = db.query(UserORM).filter(UserORM.id == user_id).first()
+            if user_orm:
+                image_url = f"http://127.0.0.1:9000/scentmatch/{user_orm.username}.png"
+                user_dict = {
+                    "id": user_orm.id,
+                    "username": user_orm.username,
+                    "email": user_orm.email,
+                    "image_url": image_url,
+                }
+                return user_dict
+            else:
+                raise HTTPException(status_code=404, detail="User not found")
+        except Exception as e:
+            logging.exception("Error fetching user data")
+            raise HTTPException(status_code=500, detail=str(e))
+
     try:
-
-        user = conn.execute_single(
-            "SELECT username, email FROM users WHERE id = %s", (user_id,)
-        )
-
-        if user:
-            # Build image URL assuming image names are stored as username.png
-            image_url = f"http://127.0.0.1:9000/scentmatch/{user[0]}.png"
-
-            # Cache the result for 30 minutes
-
-            c_user = User(
-                id=user_id,
-                username=user[0],
-                email=user[1],
-                image_url=image_url,
-            )
-            r.set(
-                cache_key,
-                c_user.model_dump_json(),
-                expire=1800,
-            )
-
-            return c_user.model_dump()
-        else:
-            return {"error": "User not found"}
-
-    except Exception as e:
-        return {"error": str(e)}
-
+        result = redis.cache_or_set(cache_key, fetch_user, expire=1800)
+        if isinstance(result, str):
+            import json
+            result = json.loads(result)
+        # If result is an error dict, raise HTTPException
+        if isinstance(result, dict) and "error" in result:
+            raise HTTPException(status_code=404, detail=result["error"])
+        return UserModel(**result)
+    except HTTPException as exc:
+        raise exc
 
 @app.get("/")
 async def root():
     return {"message": "Welcome to the ScentMatch API!"}
 
-###############################################################################################################################
-@app.get("/fragrance/{fragrance_house}")
-async def get_fragrance_data(fragrance_house: str):
-    """Will fetch from the database, for now create a dummy data"""
 
-    cache_key =f"fragrance_data_{fragrance_house}"
-    cached_data = r.get(cache_key)
-    if cached_data:
-        # Log the cache hit
-        logging.info(f"Cache hit for key: {cache_key}")
-        return json.loads(cached_data)
 
-    logging.info(f"Cache miss for key: {cache_key}")
+@app.get("/fragrance/", response_model=Fragrance)
+async def get_fragrance_data(slug: str, db: Session = Depends(get_db)):
+    logging.info(slug)
+    cache_key = f"fragrance_data_{slug}"
 
-    try:
-        # Log the incoming parameter
-        logging.info(f"Fetching fragrance data for: {fragrance_house}")
+    def fetch_fragrance():
+        try:
+            fragrance_orm = db.query(FragranceORM).filter(FragranceORM.slug == slug).first()
+            if fragrance_orm:
+                fragrance = Fragrance(
+                    id=fragrance_orm.id,
+                    name=fragrance_orm.name,
+                    description=fragrance_orm.description,
+                    slug=fragrance_orm.slug,
+                    image_url=fragrance_orm.image_url,
+                )
+                return fragrance.model_dump()
+            else:
+                return {"error": "Fragrance not found"}
+        except Exception as e:
+            logging.exception("Error fetching fragrance data")
+            return {"error": str(e)}
 
-        # Execute the query with case-insensitive matching
-        frag_house = conn.execute_single(
-            "SELECT id, name, founded, country_of_origin, logo_url, website_url, description FROM fragrance_house WHERE name ILIKE %s",
-            (fragrance_house,),
-        )
-
-        # Log the query result
-        logging.warning(f"Fragrance data: {frag_house}")
-
-        if frag_house:
-            house = FragranceHouse(
-                id=frag_house[0],
-                name=frag_house[1],
-                founded=frag_house[2],
-                country_of_origin=frag_house[3],
-                logo_url=frag_house[4],
-                website_url=frag_house[5],
-                description=frag_house[6],
-            )
-
-            r.set(
-                cache_key,
-                house.model_dump_json(),
-                expire=1800,
-            )
-
-            return house.model_dump()
-        else:
-            logging.error(f"No fragrance house found for: {fragrance_house}")
-            return {"error": "Fragrance house not found"}
-    except Exception as e:
-        logging.exception("Error fetching fragrance data")
-        return {"error": str(e)}
+    result = redis.cache_or_set(cache_key, fetch_fragrance, expire=1800)
+    # If result is an error dict, return as is
+    if isinstance(result, dict) and "error" in result:
+        return result
+    # If result is a string, try to decode to dict
+    if isinstance(result, str):
+        import json
+        result = json.loads(result)
+    return Fragrance(**result)

@@ -4,6 +4,15 @@ import os
 
 
 class RedisAdapter:
+    def cache_or_set(self, key: str, fetch_func, expire=None):
+        
+        cached = self.get(key)
+        if cached is not None:
+            return cached
+        value = fetch_func()
+        if value is not None:
+            self.set(key, value, expire=expire)
+        return value
     def __init__(self, db=0):
         self.host = os.getenv("REDIS_HOST")
         self.port = os.getenv("REDIS_PORT")

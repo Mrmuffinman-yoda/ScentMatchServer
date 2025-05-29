@@ -1,25 +1,35 @@
 from pydantic import BaseModel, Field
-from server.app.models.FragranceStrength import FragranceStrength
+from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
 
 
 class Fragrance(BaseModel):
     id: int
     name: str
-    brand: str
-    notes: list[str]
+    description : str
+    slug : str
     image_url: str
-    scent_profile: str
-    strength: FragranceStrength
 
+class FragranceTopClones(BaseModel):
+    id: int
+    fragrance_id : int
+    clone_id : int
+    rank : int
 
-if __name__ == "__main__":
-    # Example usage
-    fragrance = Fragrance(
-        id=1,
-        name="Eau de Toilette",
-        brand="Brand Name",
-        notes=["Citrus", "Floral", "Woody"],
-        image_url="http://example.com/image.jpg",
-        scent_profile="Fresh and floral",
-    )
-    print(fragrance.json())
+###### ORM models #####
+Base = declarative_base()
+
+class FragranceORM(Base):
+    __tablename__ = "fragrance"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(50), nullable=False)
+    description = Column(Text)
+    slug = Column(String(50), nullable=False)
+    image_url = Column("imageurl", String)  # <-- Fix here
+
+class FragranceTopClonesORM(Base):
+    __tablename__ = "fragrance_top_clones"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    fragrance_id = Column(Integer, ForeignKey("fragrance.id"), nullable=False)
+    clone_id = Column(Integer, ForeignKey("fragrance.id"), nullable=False)
+    rank = Column(Integer, nullable=False)
