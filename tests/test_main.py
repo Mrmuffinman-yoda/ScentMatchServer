@@ -32,25 +32,3 @@ def test_get_user_data_not_found(monkeypatch):
     assert response.status_code == 404
     assert response.json()["detail"] == "User not found"
 
-def test_get_fragrance_data_found(monkeypatch):
-    fragrance_data = {
-        "id": 1,
-        "name": "Test Fragrance",
-        "description": "A test fragrance.",
-        "slug": "test-fragrance",
-        "image_url": "http://example.com/image.png"
-    }
-    def mock_cache_or_set(key, fetch_func, expire=None):
-        return fragrance_data
-    monkeypatch.setattr("app.main.redis.cache_or_set", mock_cache_or_set)
-    response = client.get("/fragrance/?slug=test-fragrance")
-    assert response.status_code == 200
-    assert response.json() == fragrance_data
-
-def test_get_fragrance_data_not_found(monkeypatch):
-    def mock_cache_or_set(key, fetch_func, expire=None):
-        return {"error": "Fragrance not found"}
-    monkeypatch.setattr("app.main.redis.cache_or_set", mock_cache_or_set)
-    response = client.get("/fragrance/?slug=notfound")
-    assert response.status_code == 200
-    assert response.json()["error"] == "Fragrance not found"

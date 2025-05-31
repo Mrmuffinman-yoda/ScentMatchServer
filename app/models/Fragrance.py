@@ -10,6 +10,11 @@ class Fragrance(BaseModel):
     slug : str
     image_url: str
 
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
+
 class FragranceTopClones(BaseModel):
     id: int
     fragrance_id : int
