@@ -7,8 +7,7 @@ class Fragrance(BaseModel):
     id: int
     name: str
     description : str
-    slug : str
-    image_url: str
+    slug: str
 
     class Config:
         orm_mode = True
@@ -21,6 +20,17 @@ class FragranceTopClones(BaseModel):
     clone_id : int
     rank : int
 
+
+class FragranceImages(BaseModel):
+    id: int
+    slug: str
+    image_count: int
+
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
+
 ###### ORM models #####
 Base = declarative_base()
 
@@ -30,11 +40,16 @@ class FragranceORM(Base):
     name = Column(String(50), nullable=False)
     description = Column(Text)
     slug = Column(String(50), nullable=False)
-    image_url = Column("imageurl", String)  # <-- Fix here
-
 class FragranceTopClonesORM(Base):
     __tablename__ = "fragrance_top_clones"
     id = Column(Integer, primary_key=True, autoincrement=True)
     fragrance_id = Column(Integer, ForeignKey("fragrance.id"), nullable=False)
     clone_id = Column(Integer, ForeignKey("fragrance.id"), nullable=False)
     rank = Column(Integer, nullable=False)
+
+
+class FragranceImagesORM(Base):
+    __tablename__ = "fragrance_images"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    slug = Column(String(50), nullable=False)
+    image_count = Column(Integer, nullable=False)

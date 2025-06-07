@@ -1,6 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.utils.db_conn import get_db
-from app.models.Fragrance import Fragrance, FragranceORM, FragranceTopClonesORM
+from app.models.Fragrance import (
+    Fragrance,
+    FragranceORM,
+    FragranceTopClonesORM,
+    FragranceImagesORM,
+    FragranceImages,
+)
 from app.utils.redis_adapter import RedisAdapter
 import logging
 from sqlalchemy.orm import Session
@@ -22,7 +28,6 @@ async def get_fragrance_data(slug: str, db: Session = Depends(get_db)):
                 name=fragrance_orm.name,
                 description=fragrance_orm.description,
                 slug=fragrance_orm.slug,
-                image_url=fragrance_orm.image_url,
             )
             return fragrance.model_dump()
         else:
@@ -71,4 +76,19 @@ def get_top_three(fragrance_id: int, db: Session = Depends(get_db)):
         return [Fragrance.from_orm(f) for f in ordered_fragrances]
     except Exception as e:
         logging.exception("Error fetching top clones")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/fragrance/{slug}/carousel", response_model=list[FragranceImages])
+def get_fragrance_carousel(slug: str, db: Session = Depends(get_db)):
+    try:
+        images = (
+            db.query(FragranceImagesORM).filter(FragranceImagesORM.slug == slug).all()
+        )
+        if not images:
+            raise HTTPException(status_code=404, detail="No images found")
+
+        return [FragranceImages.from_orm(img) for img in images]
+    except Exception as e:
+        logging.exception("Error fetching fragrance carousel")
         raise HTTPException(status_code=500, detail=str(e))
