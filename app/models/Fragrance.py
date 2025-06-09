@@ -31,6 +31,16 @@ class FragranceImages(BaseModel):
         from_attributes = True
 
 
+class FragranceAccord(BaseModel):
+    id: int
+    slug: str
+    accord: str
+    percentage: int
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
+
 ###### ORM models #####
 Base = declarative_base()
 
@@ -53,3 +63,10 @@ class FragranceImagesORM(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     slug = Column(String(50), nullable=False)
     image_count = Column(Integer, nullable=False)
+
+class FragranceAccordORM(Base):
+    __tablename__ = "fragrance_accords"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    slug = Column(String(50), nullable=False)
+    accord = Column(String(50), nullable=False)
+    percentage = Column(Integer, nullable=False)

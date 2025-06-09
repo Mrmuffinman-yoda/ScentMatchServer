@@ -6,6 +6,8 @@ from app.models.Fragrance import (
     FragranceTopClonesORM,
     FragranceImagesORM,
     FragranceImages,
+    FragranceAccordORM,
+    FragranceAccord,
 )
 from app.utils.redis_adapter import RedisAdapter
 import logging
@@ -91,4 +93,23 @@ def get_fragrance_carousel(slug: str, db: Session = Depends(get_db)):
         return [FragranceImages.from_orm(img) for img in images]
     except Exception as e:
         logging.exception("Error fetching fragrance carousel")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+# With the fragrance slug as input, return the accords
+@router.get("/fragrance/{slug}/accords", response_model=list[FragranceAccord])
+def get_fragrance_accords(slug: str, db: Session = Depends(get_db)):
+    try:
+        accords = (
+            db.query(FragranceAccordORM)
+            .filter(FragranceAccordORM.slug == slug)
+            .all()
+        )
+        if not accords:
+            raise HTTPException(status_code=404, detail="No accords found")
+
+        return [FragranceAccord.from_orm(accord) for accord in accords]
+    except Exception as e:
+        logging.exception("Error fetching fragrance accords")
         raise HTTPException(status_code=500, detail=str(e))
