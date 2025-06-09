@@ -8,13 +8,17 @@ class TopFragrance(BaseModel):
     fragrance_id: int
     rank: int
 
+    class Config:
+        orm_mode = True
+        from_attributes = True
 
 
 ###### ORM models #####
 Base = declarative_base()
 
+
 class TopFragranceORM(Base):
-    __tablename__ = "top_fragrance"
+    __tablename__ = "top_fragrances"
     id = Column(Integer, primary_key=True, autoincrement=True)
     fragrance_id = Column(Integer, ForeignKey("fragrance.id"), nullable=False)
     rank = Column(Integer, nullable=False)

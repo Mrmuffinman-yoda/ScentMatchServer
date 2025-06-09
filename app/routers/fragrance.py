@@ -8,10 +8,8 @@ from app.models.Fragrance import (
     FragranceImages,
     FragranceAccordORM,
     FragranceAccord,
-    TopFragrance,
-    TopFragranceORM,
-    
 )
+from app.models.TopFragrances import TopFragrance, TopFragranceORM
 from app.utils.redis_adapter import RedisAdapter
 import logging
 from sqlalchemy.orm import Session
@@ -20,36 +18,54 @@ redis = RedisAdapter()
 router = APIRouter()
 
 
+# Get fragrance by slug
 @router.get("/fragrance/", response_model=Fragrance)
-async def get_fragrance_data(slug: str, db: Session = Depends(get_db)):
-    logging.info(slug)
-    cache_key = f"fragrance_data_{slug}"
+async def get_fragrance_data(
+    slug: str = None, fragrance_id: int = None, db: Session = Depends(get_db)
+):
+    if slug is None and fragrance_id is None:
+        raise HTTPException(status_code=400, detail="Either slug or fragrance_id must be provided.")
 
-    def fetch_fragrance():
-        fragrance_orm = db.query(FragranceORM).filter(FragranceORM.slug == slug).first()
-        if fragrance_orm:
-            fragrance = Fragrance(
-                id=fragrance_orm.id,
-                name=fragrance_orm.name,
-                description=fragrance_orm.description,
-                slug=fragrance_orm.slug,
-            )
-            return fragrance.model_dump()
-        else:
-            # Return a dict with an error key so the outer logic can raise 404
-            return {"error": "Fragrance not found"}
+    if slug is not None:
+        logging.info(f"Get fragrance by slug: {slug}")
+        cache_key = f"fragrance_data_{slug}"
 
-    try:
-        result = redis.cache_or_set(cache_key, fetch_fragrance, expire=1800)
-        if isinstance(result, str):
-            import json
+        def fetch_fragrance():
+            fragrance_orm = db.query(FragranceORM).filter(FragranceORM.slug == slug).first()
+            if fragrance_orm:
+                fragrance = Fragrance(
+                    id=fragrance_orm.id,
+                    name=fragrance_orm.name,
+                    description=fragrance_orm.description,
+                    slug=fragrance_orm.slug,
+                )
+                return fragrance.model_dump()
+            else:
+                return {"error": "Fragrance not found"}
 
-            result = json.loads(result)
-        if isinstance(result, dict) and "error" in result:
-            raise HTTPException(status_code=404, detail=result["error"])
-        return Fragrance(**result)
-    except HTTPException as exc:
-        raise exc
+        try:
+            result = redis.cache_or_set(cache_key, fetch_fragrance, expire=1800)
+            if isinstance(result, str):
+                import json
+
+                result = json.loads(result)
+            if isinstance(result, dict) and "error" in result:
+                raise HTTPException(status_code=404, detail=result["error"])
+            return Fragrance(**result)
+        except HTTPException as exc:
+            raise exc
+
+    # Get by fragrance_id
+    logging.info(f"Get fragrance by id: {fragrance_id}")
+    fragrance_orm = db.query(FragranceORM).filter(FragranceORM.id == fragrance_id).first()
+    if not fragrance_orm:
+        raise HTTPException(status_code=404, detail="Fragrance not found")
+    return Fragrance(
+        id=fragrance_orm.id,
+        name=fragrance_orm.name,
+        description=fragrance_orm.description,
+        slug=fragrance_orm.slug,
+    )
 
 
 # Endpoint to retrieve top three fragrances from any fragrance
@@ -73,9 +89,7 @@ def get_top_three(fragrance_id: int, db: Session = Depends(get_db)):
         fragrances = db.query(FragranceORM).filter(FragranceORM.id.in_(clone_ids)).all()
         id_to_fragrance = {f.id: f for f in fragrances}
         ordered_fragrances = [
-            id_to_fragrance[clone_id]
-            for clone_id in clone_ids
-            if clone_id in id_to_fragrance
+            id_to_fragrance[clone_id] for clone_id in clone_ids if clone_id in id_to_fragrance
         ]
 
         return [Fragrance.from_orm(f) for f in ordered_fragrances]
@@ -87,9 +101,7 @@ def get_top_three(fragrance_id: int, db: Session = Depends(get_db)):
 @router.get("/fragrance/{slug}/carousel", response_model=list[FragranceImages])
 def get_fragrance_carousel(slug: str, db: Session = Depends(get_db)):
     try:
-        images = (
-            db.query(FragranceImagesORM).filter(FragranceImagesORM.slug == slug).all()
-        )
+        images = db.query(FragranceImagesORM).filter(FragranceImagesORM.slug == slug).all()
         if not images:
             raise HTTPException(status_code=404, detail="No images found")
 
@@ -99,16 +111,11 @@ def get_fragrance_carousel(slug: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
 # With the fragrance slug as input, return the accords
 @router.get("/fragrance/{slug}/accords", response_model=list[FragranceAccord])
 def get_fragrance_accords(slug: str, db: Session = Depends(get_db)):
     try:
-        accords = (
-            db.query(FragranceAccordORM)
-            .filter(FragranceAccordORM.slug == slug)
-            .all()
-        )
+        accords = db.query(FragranceAccordORM).filter(FragranceAccordORM.slug == slug).all()
         if not accords:
             raise HTTPException(status_code=404, detail="No accords found")
 
@@ -116,19 +123,13 @@ def get_fragrance_accords(slug: str, db: Session = Depends(get_db)):
     except Exception as e:
         logging.exception("Error fetching fragrance accords")
         raise HTTPException(status_code=500, detail=str(e))
-    
 
 
-# endpoint to retrieve top three fragrances 
+# endpoint to retrieve top three fragrances
 @router.get("/fragrance/top-fragrances", response_model=list[TopFragrance])
 def get_top_fragrances(db: Session = Depends(get_db)):
     try:
-        top_fragrances = (
-            db.query(TopFragranceORM)
-            .order_by(TopFragranceORM.rank)
-            .limit(3)
-            .all()
-        )
+        top_fragrances = db.query(TopFragranceORM).order_by(TopFragranceORM.rank).limit(3).all()
         if not top_fragrances:
             raise HTTPException(status_code=404, detail="No top fragrances found")
 
