@@ -8,6 +8,9 @@ from app.models.Fragrance import (
     FragranceImages,
     FragranceAccordORM,
     FragranceAccord,
+    TopFragrance,
+    TopFragranceORM,
+    
 )
 from app.utils.redis_adapter import RedisAdapter
 import logging
@@ -112,4 +115,24 @@ def get_fragrance_accords(slug: str, db: Session = Depends(get_db)):
         return [FragranceAccord.from_orm(accord) for accord in accords]
     except Exception as e:
         logging.exception("Error fetching fragrance accords")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+
+# endpoint to retrieve top three fragrances 
+@router.get("/fragrance/top-fragrances", response_model=list[TopFragrance])
+def get_top_fragrances(db: Session = Depends(get_db)):
+    try:
+        top_fragrances = (
+            db.query(TopFragranceORM)
+            .order_by(TopFragranceORM.rank)
+            .limit(3)
+            .all()
+        )
+        if not top_fragrances:
+            raise HTTPException(status_code=404, detail="No top fragrances found")
+
+        return [TopFragrance.from_orm(tf) for tf in top_fragrances]
+    except Exception as e:
+        logging.exception("Error fetching top fragrances")
         raise HTTPException(status_code=500, detail=str(e))

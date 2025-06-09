@@ -41,6 +41,12 @@ class FragranceAccord(BaseModel):
         from_attributes = True
 
 
+class TopFragrance(BaseModel):
+    id: int
+    fragrance_id: int
+    rank: int
+
+
 ###### ORM models #####
 Base = declarative_base()
 
@@ -70,3 +76,10 @@ class FragranceAccordORM(Base):
     slug = Column(String(50), nullable=False)
     accord = Column(String(50), nullable=False)
     percentage = Column(Integer, nullable=False)
+
+
+class TopFragranceORM(Base):
+    __tablename__ = "top_fragrance"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    fragrance_id = Column(Integer, ForeignKey("fragrance.id"), nullable=False)
+    rank = Column(Integer, nullable=False)
