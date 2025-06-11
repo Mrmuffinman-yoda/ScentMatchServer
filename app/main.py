@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from dotenv import load_dotenv
 from app.utils.request_logger import log_requests
 from app.utils.redis_adapter import RedisAdapter
-from app.routers import user, fragrance
+from app.routers import user, fragrance, house
 import logging
 
 logging.basicConfig(level=logging.info)
@@ -18,6 +18,7 @@ redis = RedisAdapter()
 
 app.include_router(user.router)
 app.include_router(fragrance.router)
+app.include_router(house.router)
 
 
 @app.get("/")
