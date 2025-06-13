@@ -8,14 +8,12 @@ class FragranceHouse(BaseModel):
     slug: str
     founded: int
     country_of_origin: str
-    logo_url: str
     website_url: str
     description: str
 
     class Config:
         orm_mode = True
         from_attributes = True
-
 
 
 ###### ORM models #####
@@ -28,6 +26,5 @@ class FragranceHouseORM(Base):
     slug = Column(String(50), unique=True, nullable=False)
     founded = Column(Integer, nullable=True)
     country_of_origin = Column(String(50), nullable=True)
-    logo_url = Column(String(255), nullable=True)
     website_url = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)
