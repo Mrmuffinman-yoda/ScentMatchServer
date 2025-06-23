@@ -13,7 +13,7 @@ from app.models.TopFragrances import TopFragrance, TopFragranceORM
 from app.utils.redis_adapter import RedisAdapter
 import logging
 from sqlalchemy.orm import Session
-
+import app.utils.config as config
 redis = RedisAdapter()
 router = APIRouter()
 
@@ -166,6 +166,7 @@ def get_fragrance_page_url(slug: str = None, fragrance_id: int = None, db: Sessi
     if not house_orm:
         raise HTTPException(status_code=404, detail="House not found")
 
-    url = f"/info/{house_orm.slug}/{fragrance_orm.slug}"
+
+    url = f"{config.BASE_URL}/info/{house_orm.slug}/{fragrance_orm.slug}"
     return {"url": url}
 
