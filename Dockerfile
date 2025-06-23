@@ -11,5 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the FastAPI app
 COPY ./app /app
 
+# Precompile Python bytecode
+RUN python -m compileall /app
+
 # Expose FastAPI server port (default 8000)
 EXPOSE 8001
