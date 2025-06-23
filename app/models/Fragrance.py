@@ -56,8 +56,10 @@ class FragranceORM(Base):
     __tablename__ = "fragrance"
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(50), nullable=False)
+    house_id = Column(Integer, nullable=False)
     description = Column(Text)
     slug = Column(String(50), nullable=False)
+
 
 
 class FragranceTopClonesORM(Base):

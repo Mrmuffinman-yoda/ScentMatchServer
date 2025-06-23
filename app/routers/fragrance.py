@@ -137,3 +137,35 @@ def get_top_fragrances(db: Session = Depends(get_db)):
     except Exception as e:
         logging.exception("Error fetching top fragrances")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Endpoint to get fragrance page URL by id or slug
+@router.get("/fragrance/page-url")
+def get_fragrance_page_url(slug: str = None, fragrance_id: int = None, db: Session = Depends(get_db)):
+    """
+    Returns the URL of the fragrance page given a slug or id, in the format /info/{house_slug}/{fragrance_slug}
+    """
+    if slug is None and fragrance_id is None:
+        raise HTTPException(status_code=400, detail="Either slug or fragrance_id must be provided.")
+
+    if slug:
+        fragrance_orm = db.query(FragranceORM).filter(FragranceORM.slug == slug).first()
+    else:
+        fragrance_orm = db.query(FragranceORM).filter(FragranceORM.id == fragrance_id).first()
+
+    if not fragrance_orm:
+        raise HTTPException(status_code=404, detail="Fragrance not found")
+
+    # Get house_slug from fragrance ORM (via house_id)
+    house_id = getattr(fragrance_orm, 'house_id', None)
+    if not house_id:
+        raise HTTPException(status_code=500, detail="Fragrance missing house_id")
+
+    from app.models.FragranceHouse import FragranceHouseORM
+    house_orm = db.query(FragranceHouseORM).filter(FragranceHouseORM.id == house_id).first()
+    if not house_orm:
+        raise HTTPException(status_code=404, detail="House not found")
+
+    url = f"/info/{house_orm.slug}/{fragrance_orm.slug}"
+    return {"url": url}
+
