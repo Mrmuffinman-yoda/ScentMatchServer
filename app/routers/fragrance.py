@@ -82,8 +82,8 @@ def get_top_three(fragrance_id: int, db: Session = Depends(get_db)):
             .limit(3)
             .all()
         )
-        if not top_clones:
-            raise HTTPException(status_code=404, detail="No top clones found")
+        if len(top_clones) < 3:
+            raise HTTPException(status_code=406, detail="Less than three top clones found")
 
         clone_ids = [clone.clone_id for clone in top_clones]
         fragrances = db.query(FragranceORM).filter(FragranceORM.id.in_(clone_ids)).all()
@@ -93,6 +93,9 @@ def get_top_three(fragrance_id: int, db: Session = Depends(get_db)):
         ]
 
         return [Fragrance.from_orm(f) for f in ordered_fragrances]
+    except HTTPException:
+        # Let HTTPExceptions propagate (e.g., 406)
+        raise
     except Exception as e:
         logging.exception("Error fetching top clones")
         raise HTTPException(status_code=500, detail=str(e))
