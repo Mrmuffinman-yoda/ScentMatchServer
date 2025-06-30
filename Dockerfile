@@ -1,18 +1,16 @@
-# Use official Python image as a base
-FROM python:3.9-slim
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
-# Set the working directory
 WORKDIR /app
 
-# Install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the FastAPI app
+RUN uv pip install --system --no-cache -r requirements.txt
+
+# Now copy the rest of your application code.
 COPY ./app /app
 
-# Precompile Python bytecode
+# Pre-compile Python bytecode using the system python.
 RUN python -m compileall /app
 
-# Expose FastAPI server port (default 8000)
+# Expose the port your application will run on
 EXPOSE 8001
