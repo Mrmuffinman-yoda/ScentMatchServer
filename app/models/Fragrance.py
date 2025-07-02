@@ -6,7 +6,7 @@ from sqlalchemy.ext.declarative import declarative_base
 class Fragrance(BaseModel):
     id: int
     name: str
-    description : str
+    description: str
     slug: str
 
     class Config:
@@ -16,9 +16,9 @@ class Fragrance(BaseModel):
 
 class FragranceTopClones(BaseModel):
     id: int
-    fragrance_id : int
-    clone_id : int
-    rank : int
+    fragrance_id: int
+    clone_id: int
+    rank: int
 
 
 class FragranceImages(BaseModel):
@@ -31,15 +31,37 @@ class FragranceImages(BaseModel):
         from_attributes = True
 
 
+class FragranceAccord(BaseModel):
+    id: int
+    slug: str
+    accord: str
+    percentage: int
+
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
+
+class TopFragrance(BaseModel):
+    id: int
+    fragrance_id: int
+    rank: int
+
+
 ###### ORM models #####
 Base = declarative_base()
+
 
 class FragranceORM(Base):
     __tablename__ = "fragrance"
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(50), nullable=False)
+    house_id = Column(Integer, nullable=False)
     description = Column(Text)
     slug = Column(String(50), nullable=False)
+
+
+
 class FragranceTopClonesORM(Base):
     __tablename__ = "fragrance_top_clones"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -53,3 +75,11 @@ class FragranceImagesORM(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     slug = Column(String(50), nullable=False)
     image_count = Column(Integer, nullable=False)
+
+
+class FragranceAccordORM(Base):
+    __tablename__ = "fragrance_accords"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    slug = Column(String(50), nullable=False)
+    accord = Column(String(50), nullable=False)
+    percentage = Column(Integer, nullable=False)
