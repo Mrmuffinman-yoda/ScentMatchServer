@@ -8,7 +8,8 @@ class Fragrance(BaseModel):
     name: str
     description: str
     slug: str
-
+    house_id: int
+    
     class Config:
         orm_mode = True
         from_attributes = True

@@ -17,16 +17,16 @@ async def get_user_data(user_id: int, db: Session = Depends(get_db)):
         try:
             user_orm = db.query(UserORM).filter(UserORM.id == user_id).first()
             if user_orm:
-                image_url = f"http://127.0.0.1:9000/scentmatch/{user_orm.username}.png"
                 user_dict = {
                     "id": user_orm.id,
                     "username": user_orm.username,
                     "email": user_orm.email,
-                    "image_url": image_url,
                 }
                 return user_dict
             else:
                 raise HTTPException(status_code=404, detail="User not found")
+        except HTTPException as e:
+            raise
         except Exception as e:
             logging.exception("Error fetching user data")
             raise HTTPException(status_code=500, detail=str(e))

@@ -38,6 +38,7 @@ async def get_fragrance_data(
                     name=fragrance_orm.name,
                     description=fragrance_orm.description,
                     slug=fragrance_orm.slug,
+                    house_id=fragrance_orm.house_id,
                 )
                 return fragrance.model_dump()
             else:
@@ -65,6 +66,7 @@ async def get_fragrance_data(
         name=fragrance_orm.name,
         description=fragrance_orm.description,
         slug=fragrance_orm.slug,
+        house_id=fragrance_orm.house_id,
     )
 
 
