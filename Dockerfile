@@ -1,16 +1,24 @@
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 
 WORKDIR /app
 
 COPY requirements.txt .
 
-RUN uv pip install --system --no-cache -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -r requirements.txt
 
-# Now copy the rest of your application code.
+
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+
+WORKDIR /app
+
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy the application code
 COPY ./app /app
 
-# Pre-compile Python bytecode using the system python.
+# Pre-compile the Python code
 RUN python -m compileall /app
 
-# Expose the port your application will run on
 EXPOSE 8001
