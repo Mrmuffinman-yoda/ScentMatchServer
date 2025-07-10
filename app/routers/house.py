@@ -8,6 +8,7 @@ from app.utils.db_conn import get_db
 
 
 from app.utils.redis_adapter import RedisAdapter
+
 redis = RedisAdapter()
 router = APIRouter()
 

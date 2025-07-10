@@ -14,6 +14,7 @@ from app.utils.redis_adapter import RedisAdapter
 import logging
 from sqlalchemy.orm import Session
 import app.utils.config as config
+
 redis = RedisAdapter()
 router = APIRouter()
 

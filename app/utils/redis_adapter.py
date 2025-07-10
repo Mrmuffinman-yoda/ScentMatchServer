@@ -5,7 +5,6 @@ import os
 
 class RedisAdapter:
     def cache_or_set(self, key: str, fetch_func, expire=None):
-
         cached = self.get(key)
         if cached is not None:
             return cached
