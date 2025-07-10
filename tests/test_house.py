@@ -7,6 +7,7 @@ from app.models.FragranceHouse import FragranceHouseORM
 
 client = TestClient(app)
 
+
 def insert_fragrance(**kwargs):
     db = SessionLocal()
     fragrance_house = FragranceHouseORM(**kwargs)
@@ -18,7 +19,6 @@ def insert_fragrance(**kwargs):
 
 
 def test_get_fragrance_house_data_found_db():
-
     house_data = {
         "id": 99,
         "name": "DB House",

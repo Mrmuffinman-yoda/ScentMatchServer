@@ -6,6 +6,7 @@ from app.utils.redis_adapter import RedisAdapter
 from app.routers import user, fragrance, house
 import logging
 import app.utils.config
+
 logging.basicConfig(level=logging.info)
 logger = logging.getLogger("uvicorn")
 

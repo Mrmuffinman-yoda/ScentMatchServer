@@ -4,3 +4,4 @@ venv/
 .venv/
 logs/
 .pytest_cache/
+.ruff_cache/

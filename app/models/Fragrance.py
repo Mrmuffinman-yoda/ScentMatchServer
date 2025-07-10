@@ -9,7 +9,7 @@ class Fragrance(BaseModel):
     description: str
     slug: str
     house_id: int
-    
+
     class Config:
         orm_mode = True
         from_attributes = True
@@ -60,7 +60,6 @@ class FragranceORM(Base):
     house_id = Column(Integer, nullable=False)
     description = Column(Text)
     slug = Column(String(50), nullable=False)
-
 
 
 class FragranceTopClonesORM(Base):

@@ -7,6 +7,7 @@ from app.models.Fragrance import FragranceORM
 
 client = TestClient(app)
 
+
 def insert_fragrance(**kwargs):
     db = SessionLocal()
     fragrance = FragranceORM(**kwargs)
@@ -42,6 +43,7 @@ def test_get_fragrance_data_found_db():
     response = client.get("/fragrance/?fragrance_id=123")
     assert response.status_code == 200
     assert response.json() == fragrance_data
+
 
 def test_get_fragrance_data_not_found_db():
     response = client.get("/fragrance/?slug=does-not-exist")
