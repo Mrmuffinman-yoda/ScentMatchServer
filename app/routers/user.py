@@ -2,8 +2,13 @@ import logging
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app.utils.db_conn import get_db
-from app.models.User import User as UserModel, UserORM
+from app.models.User import User as UserModel, UserORM, LoginResponse
 from app.utils.redis_adapter import RedisAdapter
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
+import bcrypt
+import secrets
 
 redis = RedisAdapter()
 router = APIRouter()
@@ -43,3 +48,52 @@ async def get_user_data(user_id: int, db: Session = Depends(get_db)):
         return UserModel(**result)
     except HTTPException as exc:
         raise exc
+
+
+def get_user(data) -> str:
+    return data.username
+
+
+async def get_user_from_data(username: str, password: str, db: Session):
+    # check if the username is valid
+    user_data = db.query(UserORM).filter(UserORM.username == username).first()
+    if user_data:
+        return user_data
+    else:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+
+@router.post("/user/login/", response_model=LoginResponse)
+async def get_user_login(
+    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+):
+    user_data = await get_user_from_data(form_data.username, form_data.password, db)
+
+    hashed_password = user_data.password
+
+    if bcrypt.checkpw(
+        form_data.password.encode("utf-8"), hashed_password.encode("utf-8")
+    ):
+        # make session token
+        session_token = secrets.token_urlsafe(32)
+
+        # save token to redis with username as key
+        cache_key = f"session:{session_token}"
+
+        redis.cache_or_set(
+            cache_key, expire=3600, fetch_func=lambda: get_user(user_data)
+        )
+
+        # Pass the required arguments directly to the LoginResponse constructor
+        return LoginResponse(
+            id=user_data.id,
+            username=user_data.username,
+            session_token=session_token
+        )
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
