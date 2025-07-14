@@ -63,7 +63,7 @@ async def get_user_from_data(username: str, password: str, db: Session):
         raise HTTPException(status_code=404, detail="Account not found")
 
 
-@router.post("/user/login/", response_model=LoginResponse)
+@router.post("/user/login", response_model=LoginResponse)
 async def get_user_login(
     form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ):
