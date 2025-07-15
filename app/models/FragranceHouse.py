@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Column, Integer, String, Text, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 
+
 class FragranceHouse(BaseModel):
     id: int
     name: str
@@ -18,6 +19,7 @@ class FragranceHouse(BaseModel):
 
 ###### ORM models #####
 Base = declarative_base()
+
 
 class FragranceHouseORM(Base):
     __tablename__ = "fragrance_house"

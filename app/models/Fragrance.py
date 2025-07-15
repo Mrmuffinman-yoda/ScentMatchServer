@@ -61,7 +61,6 @@ class FragranceORM(Base):
     slug = Column(String(50), nullable=False)
 
 
-
 class FragranceTopClonesORM(Base):
     __tablename__ = "fragrance_top_clones"
     id = Column(Integer, primary_key=True, autoincrement=True)

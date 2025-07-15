@@ -86,9 +86,7 @@ async def get_user_login(
 
         # Pass the required arguments directly to the LoginResponse constructor
         return LoginResponse(
-            id=user_data.id,
-            username=user_data.username,
-            session_token=session_token
+            id=user_data.id, username=user_data.username, session_token=session_token
         )
 
     else:
