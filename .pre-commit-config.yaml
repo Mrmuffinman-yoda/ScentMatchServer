@@ -1,0 +1,18 @@
+repos:
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.270
+    hooks:
+      - id: ruff
+        name: Ruff (format)
+        entry: ruff format
+        language: system
+        types: [python]
+
+  - repo: https://github.com/psf/black
+    rev: 23.7.0
+    hooks:
+      - id: black
+        name: Black (Python formatter)
+        entry: black -l 88
+        language: system
+        types: [python]
