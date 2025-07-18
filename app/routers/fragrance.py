@@ -14,6 +14,7 @@ from app.utils.redis_adapter import RedisAdapter
 import logging
 from sqlalchemy.orm import Session
 import app.utils.config as config
+from app.constants import HTTPStatus, Timeouts
 
 redis = RedisAdapter()
 router = APIRouter()
@@ -26,7 +27,8 @@ async def get_fragrance_data(
 ):
     if slug is None and fragrance_id is None:
         raise HTTPException(
-            status_code=400, detail="Either slug or fragrance_id must be provided."
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Either slug or fragrance_id must be provided.",
         )
 
     if slug is not None:
@@ -49,13 +51,17 @@ async def get_fragrance_data(
                 return {"error": "Fragrance not found"}
 
         try:
-            result = redis.cache_or_set(cache_key, fetch_fragrance, expire=1800)
+            result = redis.cache_or_set(
+                cache_key, fetch_fragrance, expire=Timeouts.REDIS_CACHE
+            )
             if isinstance(result, str):
                 import json
 
                 result = json.loads(result)
             if isinstance(result, dict) and "error" in result:
-                raise HTTPException(status_code=404, detail=result["error"])
+                raise HTTPException(
+                    status_code=HTTPStatus.NOT_FOUND, detail=result["error"]
+                )
             return Fragrance(**result)
         except HTTPException as exc:
             raise exc
@@ -66,7 +72,9 @@ async def get_fragrance_data(
         db.query(FragranceORM).filter(FragranceORM.id == fragrance_id).first()
     )
     if not fragrance_orm:
-        raise HTTPException(status_code=404, detail="Fragrance not found")
+        raise HTTPException(
+            status_code=const.HTTP_NOT_FOUND, detail="Fragrance not found"
+        )
     return Fragrance(
         id=fragrance_orm.id,
         name=fragrance_orm.name,
@@ -91,7 +99,8 @@ def get_top_three(fragrance_id: int, db: Session = Depends(get_db)):
         )
         if len(top_clones) < 3:
             raise HTTPException(
-                status_code=406, detail="Less than three top clones found"
+                status_code=HTTPStatus.NOT_ACCEPTABLE,
+                detail="Less than three top clones found",
             )
 
         clone_ids = [clone.clone_id for clone in top_clones]
@@ -105,11 +114,10 @@ def get_top_three(fragrance_id: int, db: Session = Depends(get_db)):
 
         return [Fragrance.from_orm(f) for f in ordered_fragrances]
     except HTTPException:
-        # Let HTTPExceptions propagate (e.g., 406)
         raise
     except Exception as e:
         logging.exception("Error fetching top clones")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.get("/fragrance/{slug}/carousel", response_model=list[FragranceImages])
@@ -119,12 +127,14 @@ def get_fragrance_carousel(slug: str, db: Session = Depends(get_db)):
             db.query(FragranceImagesORM).filter(FragranceImagesORM.slug == slug).all()
         )
         if not images:
-            raise HTTPException(status_code=404, detail="No images found")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail="No images found"
+            )
 
         return [FragranceImages.from_orm(img) for img in images]
     except Exception as e:
         logging.exception("Error fetching fragrance carousel")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 # With the fragrance slug as input, return the accords
@@ -135,12 +145,14 @@ def get_fragrance_accords(slug: str, db: Session = Depends(get_db)):
             db.query(FragranceAccordORM).filter(FragranceAccordORM.slug == slug).all()
         )
         if not accords:
-            raise HTTPException(status_code=404, detail="No accords found")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail="No accords found"
+            )
 
         return [FragranceAccord.from_orm(accord) for accord in accords]
     except Exception as e:
         logging.exception("Error fetching fragrance accords")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 # endpoint to retrieve top three fragrances
@@ -151,12 +163,14 @@ def get_top_fragrances(db: Session = Depends(get_db)):
             db.query(TopFragranceORM).order_by(TopFragranceORM.rank).limit(3).all()
         )
         if not top_fragrances:
-            raise HTTPException(status_code=404, detail="No top fragrances found")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail="No top fragrances found"
+            )
 
         return [TopFragrance.from_orm(tf) for tf in top_fragrances]
     except Exception as e:
         logging.exception("Error fetching top fragrances")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 # Endpoint to get fragrance page URL by id or slug
@@ -180,12 +194,17 @@ def get_fragrance_page_url(
         )
 
     if not fragrance_orm:
-        raise HTTPException(status_code=404, detail="Fragrance not found")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="Fragrance not found"
+        )
 
     # Get house_slug from fragrance ORM (via house_id)
     house_id = getattr(fragrance_orm, "house_id", None)
     if not house_id:
-        raise HTTPException(status_code=500, detail="Fragrance missing house_id")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail="Fragrance missing house_id",
+        )
 
     from app.models.FragranceHouse import FragranceHouseORM
 
@@ -193,7 +212,7 @@ def get_fragrance_page_url(
         db.query(FragranceHouseORM).filter(FragranceHouseORM.id == house_id).first()
     )
     if not house_orm:
-        raise HTTPException(status_code=404, detail="House not found")
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="House not found")
 
     url = f"{config.BASE_URL}/info/{house_orm.slug}/{fragrance_orm.slug}"
     return {"url": url}

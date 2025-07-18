@@ -26,3 +26,4 @@ class LoginResponse(BaseModel):
     id: int
     username: str
     session_token: str
+    expiry: int

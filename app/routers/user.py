@@ -6,9 +6,9 @@ from app.models.User import User as UserModel, UserORM, LoginResponse
 from app.utils.redis_adapter import RedisAdapter
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel
 import bcrypt
 import secrets
+from app.constants import Timeouts, HTTPStatus
 
 redis = RedisAdapter()
 router = APIRouter()
@@ -31,20 +31,26 @@ async def get_user_data(user_id: int, db: Session = Depends(get_db)):
                 }
                 return user_dict
             else:
-                raise HTTPException(status_code=404, detail="User not found")
+                raise HTTPException(
+                    status_code=HTTPStatus.NOT_FOUND, detail="User not found"
+                )
         except Exception as e:
             logging.exception("Error fetching user data")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e)
+            )
 
     try:
-        result = redis.cache_or_set(cache_key, fetch_user, expire=1800)
+        result = redis.cache_or_set(cache_key, fetch_user, expire=Timeouts.REDIS_CACHE)
         if isinstance(result, str):
             import json
 
             result = json.loads(result)
         # If result is an error dict, raise HTTPException
         if isinstance(result, dict) and "error" in result:
-            raise HTTPException(status_code=404, detail=result["error"])
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail=result["error"]
+            )
         return UserModel(**result)
     except HTTPException as exc:
         raise exc
@@ -55,12 +61,14 @@ def get_user(data) -> str:
 
 
 async def get_user_from_data(username: str, password: str, db: Session):
-    # check if the username is valid
+    """Get user from database using username and password to check for existence"""
     user_data = db.query(UserORM).filter(UserORM.username == username).first()
     if user_data:
         return user_data
     else:
-        raise HTTPException(status_code=404, detail="Account not found")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="Account not found"
+        )
 
 
 @router.post("/user/login", response_model=LoginResponse)
@@ -80,13 +88,18 @@ async def get_user_login(
         # save token to redis with username as key
         cache_key = f"session:{session_token}"
 
+        expiry = Timeouts.SESSION_TOKEN
+
         redis.cache_or_set(
-            cache_key, expire=3600, fetch_func=lambda: get_user(user_data)
+            cache_key, expire=expiry, fetch_func=lambda: get_user(user_data)
         )
 
         # Pass the required arguments directly to the LoginResponse constructor
         return LoginResponse(
-            id=user_data.id, username=user_data.username, session_token=session_token
+            id=user_data.id,
+            username=user_data.username,
+            session_token=session_token,
+            expiry=expiry,
         )
 
     else:

@@ -5,7 +5,7 @@ from app.models.FragranceHouse import (
     FragranceHouseORM,
 )
 from app.utils.db_conn import get_db
-
+from app.constants import HTTPStatus, Timeouts
 
 from app.utils.redis_adapter import RedisAdapter
 
@@ -19,7 +19,8 @@ def get_fragrance_house_data(
 ):
     if slug is None and house_id is None:
         raise HTTPException(
-            status_code=400, detail="Either slug or house_id must be provided."
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Either slug or house_id must be provided.",
         )
 
     if slug is not None:
@@ -37,13 +38,17 @@ def get_fragrance_house_data(
                 return {"error": "Fragrance house not found"}
 
         try:
-            result = redis.cache_or_set(cache_key, fetch_house, expire=1800)
+            result = redis.cache_or_set(
+                cache_key, fetch_house, expire=Timeouts.REDIS_CACHE
+            )
             if isinstance(result, str):
                 import json
 
                 result = json.loads(result)
             if isinstance(result, dict) and "error" in result:
-                raise HTTPException(status_code=404, detail=result["error"])
+                raise HTTPException(
+                    status_code=HTTPStatus.NOT_FOUND, detail=result["error"]
+                )
             return FragranceHouse(**result)
         except HTTPException as exc:
             raise exc
@@ -53,5 +58,7 @@ def get_fragrance_house_data(
         db.query(FragranceHouseORM).filter(FragranceHouseORM.id == house_id).first()
     )
     if not house_orm:
-        raise HTTPException(status_code=404, detail="Fragrance house not found")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="Fragrance house not found"
+        )
     return FragranceHouse.from_orm(house_orm)
