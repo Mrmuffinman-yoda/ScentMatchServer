@@ -1,11 +1,9 @@
 import logging
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Form
 from sqlalchemy.orm import Session
 from app.utils.db_conn import get_db
 from app.models.User import User as UserModel, UserORM, LoginResponse
 from app.utils.redis_adapter import RedisAdapter
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
 import bcrypt
 import secrets
 from app.constants import Timeouts, HTTPStatus
@@ -60,9 +58,9 @@ def get_user(data) -> str:
     return data.username
 
 
-async def get_user_from_data(username: str, password: str, db: Session):
+async def get_user_from_data(email: str, db: Session):
     """Get user from database using username and password to check for existence"""
-    user_data = db.query(UserORM).filter(UserORM.username == username).first()
+    user_data = db.query(UserORM).filter(UserORM.email == email).first()
     if user_data:
         return user_data
     else:
@@ -73,19 +71,16 @@ async def get_user_from_data(username: str, password: str, db: Session):
 
 @router.post("/user/login", response_model=LoginResponse)
 async def get_user_login(
-    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+    email: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)
 ):
-    user_data = await get_user_from_data(form_data.username, form_data.password, db)
+    user_data = await get_user_from_data(email, db)
 
     hashed_password = user_data.password
 
-    if bcrypt.checkpw(
-        form_data.password.encode("utf-8"), hashed_password.encode("utf-8")
-    ):
-        # make session token
+    if bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8")):
+        # make session token and save to redis
         session_token = secrets.token_urlsafe(32)
 
-        # save token to redis with username as key
         cache_key = f"session:{session_token}"
 
         expiry = Timeouts.SESSION_TOKEN
